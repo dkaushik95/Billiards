@@ -4,53 +4,55 @@ using UnityEngine;
 
 public class Cue : MonoBehaviour
 {
-  public Vector3[] force;
+  public Vector3 force;
   public float time;
-  public Vector3[] velocity;
-  public Vector3[] linearMomentum;
-  public float[] mass;
+  public Vector3 velocity;
+  public Vector3 linearMomentum;
+  public float mass;
   public float coeffficientOfFriction;
   public float gravity;
-  public Vector3[] distance;
-  public Vector3[] impulse;
+  public Vector3 distance;
+  public Vector3 impulse;
   public float radius = 0.5f;
-  public GameObject[] objs = new GameObject[2];
-  private Vector3 offset;
-  public GameObject camera;
-  public GameObject cue;
+  public GameObject obj;
   public float totalTime;
+
+  public bool collided;
+  public Vector3 velocityAtCollision;
   // public GameObject obj = null;
   // Start is called before the first frame update
   void Start()
   {
-    offset = camera.transform.position - cue.transform.position;
     gravity = 9.8f;
-    coeffficientOfFriction = 0.4f;
-    objs = GameObject.FindGameObjectsWithTag("Player");
-    force = new Vector3[objs.Length];
-    velocity = new Vector3[objs.Length];
-    mass = new float[objs.Length];
-    distance = new Vector3[objs.Length];
-    linearMomentum = new Vector3[objs.Length];
-    impulse = new Vector3[objs.Length];
+    coeffficientOfFriction = 0.2f;
+    // obj = GameObject.FindGameObjectsWithTag("Player");
+    // force = new Vector3[obj.Length];
+    // velocity = new Vector3[obj.Length];
+    mass = 5;
+    distance = obj.transform.position;
+    collided = false;
+    // distance = new Vector3[obj.Length];
+    // linearMomentum =  new Vector3(10, 0, 0);
+    // impulse = new Vector3[obj.Length];
+    // collided = new bool[obj.Length];
     // distance = Vector3.zero;
-    for (int i = 0; i < objs.Length; i++)
-    {
-      force[i] = Vector3.zero;
-      velocity[i] = Vector3.zero;
-      mass[i] = 1f;
-      distance[i] = objs[i].transform.position;
-      impulse[i] = Vector3.zero;
-      if (objs[i].name == "cue")
-      {
-        linearMomentum[i] = new Vector3(20, 0, 0);
-      }
-      else
-      {
-        linearMomentum[i] = new Vector3(0, 0, 0);
-      }
-    }
-    Debug.Log(objs.Length);
+    // for (int i = 0; i < obj.Length; i++)
+    // {
+    //   force = Vector3.zero;
+    //   velocity = Vector3.zero;
+    //   mass = 1f;
+    //   distance = obj.transform.position;
+    //   impulse = Vector3.zero;
+    //   if (obj.name == "cue")
+    //   {
+    //     linearMomentum = new Vector3(10, 0, 0);
+    //   }
+    //   else
+    //   {
+    //     linearMomentum = new Vector3(0, 0, 0);
+    //   }
+    // }
+    // Debug.Log(obj.Length);
   }
 
   // Update is called once per frame
@@ -59,65 +61,66 @@ public class Cue : MonoBehaviour
     totalTime += Time.deltaTime;
     if (totalTime > 2)
     {
-      camera.transform.position = cue.transform.position + offset;
-
-      for (int i = 0; i < objs.Length; i++)
+      // STEP 1: Calculate force
+      // force = previous force + friction force
+      // only if body is in motion
+      // velocity != 0
+      // friction force = Unit vector opposite side of velocity
+      var frictionForce = Vector3.zero;
+      if (velocity.magnitude <= 0.01)
       {
-        // STEP 1: Calculate force
-        // force = previous force + friction force
-        // only if body is in motion
-        // velocity != 0
-        // friction force = Unit vector opposite side of velocity
-        var frictionForce = Vector3.zero;
-        if (velocity[i].magnitude <= 0.01)
+        frictionForce = Vector3.zero;
+        velocity = Vector3.zero;
+      }
+      else
+      {
+        frictionForce = (-velocity / velocity.magnitude) * coeffficientOfFriction * mass * gravity;
+      }
+      force = frictionForce;
+      time = Time.deltaTime;
+      // STEP 2: Integrate velocities
+      distance = distance + velocity * time;
+      // STEP 3: Perform collision
+      // Debug.Log(obj.Length);
+      var objs = GameObject.FindGameObjectsWithTag("Player");
+      velocityAtCollision = velocity;
+
+      for (int j = 0; j < objs.Length; j++)
+      {
+        if (objs[j] == obj)
         {
-          frictionForce = Vector3.zero;
-          velocity[i] = Vector3.zero;
+          continue;
         }
         else
         {
-          frictionForce = (-velocity[i] / velocity[i].magnitude) * coeffficientOfFriction * mass[i] * gravity;
-        }
-        force[i] = frictionForce;
-        time = Time.deltaTime;
-        // STEP 2: Integrate velocities
-        distance[i] = distance[i] + velocity[i] * time;
-        // STEP 3: Perform collision
-        // Debug.Log(objs.Length);
-        for (int j = 0; j < objs.Length; j++)
-        {
-          if (i == j)
+          var a = obj.transform.position;
+          var b = objs[j].transform.position;
+          if (Vector3.Distance(a, b) <= 2.2 * radius && !collided)
           {
-            continue;
+            collided = true;
+            var script = objs[j].GetComponent<Cue>();
+            impulse = (script.velocityAtCollision - velocityAtCollision) * mass / 2;
+            // impulse[j] = (velocity[j] - velocity) * mass / 2;
+            Debug.Log("Colided");
+            // break;
           }
-          else
+          else if (Vector3.Distance(a, b) > 2.2 * radius)
           {
-            var a = objs[i].transform.position;
-            var b = objs[j].transform.position;
-            if (Vector3.Distance(a, b) < 2 * radius)
-            {
-              impulse[i] = (velocity[j] - velocity[i]);
-              // impulse[j] = (velocity[j] - velocity[i]) * mass[i] / 2;
-              Debug.Log("Colided");
-              // break;
-            }
-
-            else
-            {
-              impulse[i] = Vector3.zero;
-            }
-            // Debug.Log(Vector3.Distance(a, b));
+            collided = false;
+            impulse = Vector3.zero;
           }
-
-          // }
-          // STEP 4: Update 
+          // Debug.Log(Vector3.Distance(a, b));
         }
 
-        linearMomentum[i] = linearMomentum[i] + force[i] * time + impulse[i];
-        // Step 5: Calculate velocities for next step
-        velocity[i] = linearMomentum[i] / (float)mass[i];
-        objs[i].transform.position = distance[i];
+        // }
+        // STEP 4: Update 
       }
+
+      linearMomentum = linearMomentum + force * time + impulse;
+      // Step 5: Calculate velocities for next step
+      velocity = linearMomentum / (float)mass;
+      obj.transform.position = distance;
+
     }
 
   }
